@@ -1,0 +1,155 @@
+FRONTEND SCRIPTS EXPLANATION (CLIENT-SIDE JS)
+=============================================
+
+This document explains the JavaScript logic embedded in each HTML file of the BookHaven (E-Lib3) project.
+
+1. INDEX.HTML (MAIN STOREFRONT)
+-------------------------------
+This is the most complex script as it handles the core user experience: browsing, authentication, cart, and payments.
+
+[A] GLOBAL STATE VARIABLES
+*   `currentUser`: Stores the logged-in user object (loaded from `localStorage`).
+*   `cart`: Array of items added to the cart (loaded from `localStorage`).
+*   `allBooks` & `filteredBooks`: Arrays holding book data fetched from the server.
+*   `tempTx`: Temporary object to hold transaction details (price, plan, method) during checkout.
+*   `pollInterval`: Stores the timer ID for the QR code payment polling.
+
+[B] INITIALIZATION (`init()`)
+*   Runs on window load.
+*   `checkMembershipExpiry()`: Checks if the user's plan has expired based on the current date. If expired, updates local storage and reloads.
+*   `updateAuthUI()`: Toggles between showing "Login/Register" buttons and the "User Profile" dropdown.
+*   `loadCarousel()`: Fetches dynamic slides from `/api/carousel` and injects them into the hero section.
+*   `fetch('/api/books')`: Loads the book catalog.
+
+[C] AUTHENTICATION
+*   `validateAndLogin()`: Validates email/password format -> calls `doLogin()`.
+*   `doLogin()`: POSTs to `/api/login`. On success, saves user to `localStorage` and reloads.
+*   `validateAndSendOTP()`: Validates registration inputs -> calls `sendOTP()`.
+*   `verifyOTPAndRegister()`: POSTs user data + OTP to `/api/register`.
+*   `handleChangePassword()`: Handles the password reset flow via `/api/change-password`.
+
+[D] SHOPPING CART
+*   `addToCart(title, price, ...)`: Adds an item to the `cart` array. Handles both Books and Membership plans.
+*   `openCart()`: Renders the cart modal list dynamically.
+*   `proceedToPaymentFromCart()`: Calculates total, sets `tempTx` state, and opens the Payment Modal.
+
+[E] PAYMENT SYSTEM
+*   `switchPayMethod(method)`: Toggles UI between Card inputs and QR display.
+    *   If **QR**: Calls `/api/qr/generate` to get a transaction ID (`txId`) and QR image. Then calls `startPolling(txId)`.
+*   `startPolling(txId)`: Uses `setInterval` to check `/api/qr/status/:txId` every 2 seconds.
+    *   If status is 'SUCCESS', calls `finalizePayment()`.
+*   `finalizePayment()`:
+    *   Constructs the payload: User Email, Plan Name, End Date, and List of Books.
+    *   POSTs to `/api/update-membership-status`.
+    *   On success: Clears cart, updates `currentUser` in localStorage, and reloads.
+
+[F] RENDERING & SEARCH
+*   `performSearch()`: Filters `allBooks` into `filteredBooks` based on title/author.
+*   `render()`:
+    *   Calculates pagination (slice of array).
+    *   Generates HTML for book cards.
+    *   **Logic**: Checks `currentUser.history` to see if a book is owned. Checks `membership_plan` to see if user is Premium. Decides whether to show "Read", "Download", or "Add to Cart".
+
+
+2. PROFILE.HTML (USER DASHBOARD)
+--------------------------------
+Handles displaying user details and their personal library.
+
+[A] INITIALIZATION (`initProfile()`)
+*   Fetches fresh user data from `/api/user-details?email=...`.
+*   *Why?* To ensure that if the user bought a book on another device, or if their plan expired on the server, the profile page reflects the absolute latest state from the database, rather than stale `localStorage` data.
+
+[B] RENDERING (`renderUI()`)
+*   Updates the Profile Card (Name, Email, Plan Badge).
+*   **History Filtering**:
+    *   The database `payments` table stores everything (Memberships and Books).
+    *   The script filters `user.history`:
+        `const booksOnly = history.filter(item => !item.title.includes('Membership'));`
+    *   This ensures the "My Bookshelf" section only shows readable books, not billing logs.
+
+
+3. ADMIN-BOOKS.HTML (CATALOG MANAGEMENT)
+----------------------------------------
+CRUD interface for the `books` table.
+
+[A] LOADING
+*   `loadBooks()`: GET `/api/books`. Renders a table with Edit/Delete buttons.
+
+[B] ADD / EDIT LOGIC
+*   The form is shared for both Adding and Editing.
+*   `editBook(id)`: Fills the form inputs with data from the selected book and sets a hidden `<input id="bookId">`.
+*   **Form Submit**:
+    *   Checks if `bookId` has a value.
+    *   If YES -> `PUT /api/admin/edit-book/:id` (Update).
+    *   If NO -> `POST /api/admin/add-book` (Create).
+
+[C] DELETE
+*   `deleteBook(id)`: Confirms with user, then sends DELETE request.
+
+
+4. ADMIN-USERS.HTML (USER MANAGEMENT)
+-------------------------------------
+View and manage registered users.
+
+[A] LOADING
+*   `loadUsers()`: GET `/api/admin/users`.
+
+[B] STATUS CALCULATION
+*   The script calculates "Active" vs "Expired" status on the client side:
+    ```javascript
+    const expiry = new Date(u.end_date);
+    if (expiry > new Date()) { status = 'Active'; }
+    else { status = 'Expired'; }
+    ```
+*   Renders a badge based on this calculation.
+
+
+5. ADMIN-PAYMENTS.HTML (TRANSACTION LOGS)
+-----------------------------------------
+Read-only view of financial history.
+
+[A] LOADING
+*   `loadPayments()`: GET `/api/admin/payments`.
+
+[B] REVENUE CALCULATION
+*   Iterates through the fetched array and sums up the `amount` field to display "Total Revenue" at the top of the page.
+*   Maps `payment_method` string ('Card'/'QR') to icons (💳/📱).
+
+
+6. ADMIN-CAROUSEL.HTML (HERO SLIDER CMS)
+----------------------------------------
+Manages the dynamic slides on the homepage.
+
+[A] LOADING
+*   `loadSlides()`: GET `/api/admin/carousel`.
+
+[B] UPLOAD LOGIC
+*   **Form Submit**:
+    *   Uses `FormData` object instead of JSON.
+    *   `formData.append('image', fileInput.files[0])`.
+    *   This is required to send binary file data to the Multer middleware on the backend.
+
+
+7. ADMIN.HTML (DASHBOARD HUB)
+-----------------------------
+The entry point for admins.
+
+[A] SECURITY CHECK
+*   Runs immediately on load:
+    ```javascript
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || user.role !== 'admin') {
+        window.location.href = "index.html";
+    }
+    ```
+*   Prevents unauthorized access to the admin panel.
+
+
+8. SHARED UTILITIES (STYLE.CSS / THEME)
+---------------------------------------
+*   `toggleMode()`:
+    *   Toggles the `light-mode` class on the `<body>` tag.
+    *   Saves preference to `localStorage.getItem('themePreference')`.
+    *   Updates the sun/moon icon.
+*   `applySavedTheme()`:
+    *   Called on page load to restore the user's preferred theme.

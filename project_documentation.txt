@@ -1,0 +1,125 @@
+PROJECT DOCUMENTATION: BOOKHAVEN (E-LIB3)
+=========================================
+
+1. PROJECT OVERVIEW
+-------------------
+BookHaven is a full-stack E-Library application designed to allow users to browse, search, and read digital books. It features a premium membership system, a shopping cart for individual purchases, and a comprehensive administration panel for content management.
+
+2. TECHNOLOGY STACK
+-------------------
+*   **Frontend Structure**: HTML5
+*   **Styling**: 
+    *   Bootstrap 5 (Grid system, Modals, Carousel)
+    *   Tailwind CSS (Utility classes for rapid styling)
+    *   Custom CSS (`style.css`) for specific themes (Dark/Light mode, Glassmorphism).
+*   **Scripting**: Vanilla JavaScript (ES6+).
+*   **Backend API**: Node.js/Express (running on localhost:5000).
+*   **Data Storage**: 
+    *   Server-side: SQL Database (MySQL/MariaDB).
+    *   Client-side: `localStorage` for session management, cart, and theme preferences.
+
+3. FILE STRUCTURE & MODULES
+---------------------------
+The project is divided into Client-Facing modules and Administration modules.
+
+[A] CLIENT-FACING MODULES
+
+1.  **index.html (Main Storefront)**
+    *   **Purpose**: The entry point for users. Handles browsing, authentication, and purchasing.
+    *   **Key Components**:
+        *   **Navbar**: Navigation, Cart trigger, Auth dropdown, Theme toggle.
+        *   **Hero Carousel**: Dynamic slides fetched from the server.
+        *   **Book Grid**: Displays books with pagination and search.
+        *   **Modals**: Login, Register, Cart, Payment, Book Details.
+    *   **Key Functions**:
+        *   `init()`: Bootstraps the application, checks auth status, loads data.
+        *   `loadCarousel()`: Fetches and renders dynamic slides for the hero section.
+        *   `render()`: Renders the book grid based on `filteredBooks` and pagination.
+        *   `performSearch()`: Filters the `allBooks` array based on user input.
+        *   `addToCart(title, price)`: Adds items to the local cart array.
+        *   `switchPayMethod(method)`: Toggles between Card and QR payment logic.
+        *   `finalizePayment()`: Sends transaction data to the API and updates user permissions.
+        *   `validateAndLogin()` / `verifyOTPAndRegister()`: Handles user authentication flows.
+
+2.  **profile.html (User Dashboard)**
+    *   **Purpose**: A private area for logged-in users to view their status and library.
+    *   **Key Components**:
+        *   **User Info Card**: Shows name, email, and membership plan.
+        *   **Bookshelf**: Lists books owned by the user (filtered from transaction history).
+    *   **Key Functions**:
+        *   `initProfile()`: Fetches fresh user data from the server to ensure sync.
+        *   `renderUI()`: Populates the HTML with user details and filters the history array to show only books.
+
+[B] ADMINISTRATION MODULES
+
+3.  **admin.html (Admin Hub)**
+    *   **Purpose**: The central dashboard for administrators.
+    *   **Functionality**: Provides navigation links to specific admin modules. Performs a security check to ensure the logged-in user has the 'admin' role.
+
+4.  **admin-books.html (Book Management)**
+    *   **Purpose**: CRUD (Create, Read, Update, Delete) interface for the library catalog.
+    *   **Key Functions**:
+        *   `loadBooks()`: Fetches the catalog from `/api/books` and renders a table.
+        *   `editBook(id)`: Populates the form with existing data for modification.
+        *   `deleteBook(id)`: Sends a DELETE request to the API.
+        *   Form Submit Handler: Determines whether to create a new book or update an existing one based on the presence of a hidden `bookId`.
+
+5.  **admin-users.html (User Registry)**
+    *   **Purpose**: Interface to view and manage registered users.
+    *   **Key Functions**:
+        *   `loadUsers()`: Fetches user list. It calculates "Active" vs "Expired" status by comparing the `end_date` with the current date.
+        *   `deleteUser(id)`: Removes a user from the database.
+
+6.  **admin-payments.html (Transaction Logs)**
+    *   **Purpose**: A ledger of all financial transactions.
+    *   **Key Functions**:
+        *   `loadPayments()`: Fetches transaction history. It also calculates the "Total Revenue" by summing up the `amount` field of all records.
+
+7.  **admin-carousel.html (CMS)**
+    *   **Purpose**: Content Management System for the homepage hero slider.
+    *   **Key Functions**:
+        *   `loadSlides()`: Lists active slides.
+        *   Form Submit Handler: Uses `FormData` to upload image files and text to the server.
+
+4. DATA STRUCTURES & LOGIC
+--------------------------
+
+*   **Arrays**: Used extensively for `allBooks`, `filteredBooks`, `cart`, and `slides`.
+    *   *Usage*: Pagination is achieved by slicing the `filteredBooks` array.
+*   **Objects**: Used for `currentUser` (session data) and `tempTx` (temporary transaction state).
+*   **JSON**: The primary format for data exchange between Frontend and Backend.
+*   **Polling (Queue Concept)**: Used in `index.html` for QR Code payments. `setInterval` creates a polling mechanism that checks the server every 2 seconds for payment confirmation.
+
+5. CONNECTIONS & DATA FLOW
+--------------------------
+
+1.  **Authentication Flow**:
+    *   User enters credentials -> `POST /api/login` -> Server returns User Object -> Client saves to `localStorage.getItem('user')`.
+    *   All protected pages (`profile.html`, `admin*.html`) check `localStorage` on load.
+
+2.  **Shopping Flow**:
+    *   User clicks "Add to Cart" -> Item added to `cart` array in `localStorage`.
+    *   Checkout -> `tempTx` object stores total price.
+    *   Payment -> `POST /api/update-membership-status` -> Server records transaction and updates user's `history` and `end_date`.
+
+3.  **Admin Flow**:
+    *   Admin pages fetch data (GET) from `/api/admin/...` endpoints.
+    *   Actions (Add/Edit/Delete) send POST/PUT/DELETE requests.
+    *   The UI refreshes (`load...()` functions) immediately after a successful API response.
+
+6. EXTERNAL DEPENDENCIES (CDN)
+------------------------------
+*   **Bootstrap 5**: `bootstrap.min.css` / `bootstrap.bundle.min.js` (UI Components).
+*   **Tailwind CSS**: `cdn.tailwindcss.com` (Utility styling).
+*   **Google Fonts**: 'Plus Jakarta Sans' and 'Playfair Display'.
+
+7. CSS CLASSES & THEME SYSTEM
+-----------------------------
+The project uses a custom theme engine defined in `style.css` and toggled via JS.
+*   **Classes**:
+    *   `.modal-custom`: Glassmorphism style for popups.
+    *   `.btn-primary-custom`: Main action buttons (Galaxy gradient).
+    *   `.bg-pattern` / `.bg-overlay`: Background visual effects.
+*   **Theme Logic**:
+    *   `toggleMode()`: Switches the `<body>` class between `dark-mode` and `light-mode`.
+    *   Preference is saved in `localStorage.getItem('themePreference')`.
