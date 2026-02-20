@@ -1,0 +1,79 @@
+SERVER.JS CODE EXPLANATION (BACKEND)
+====================================
+
+1. CORE DEPENDENCIES & SETUP
+----------------------------
+*   **Express**: The web framework handling HTTP requests.
+*   **MySQL2**: Connects to the database with a connection pool (`db`).
+*   **CORS**: Allows the frontend (browser) to make requests to this server.
+*   **Body-Parser**: Parses incoming JSON request bodies.
+*   **Nodemailer**: Used for sending emails (OTPs).
+*   **Bcrypt**: Hashes passwords for security before storing them.
+*   **Multer**: Handles file uploads (images for carousel slides).
+*   **Axios**: Used to proxy file downloads.
+
+2. GLOBAL VARIABLES (IN-MEMORY STORAGE)
+---------------------------------------
+*   `otpStore = {}`: Temporarily stores OTPs mapped to email addresses.
+    *   *Note*: Data is lost if the server restarts.
+*   `activeTransactions = {}`: Stores the status ('PENDING', 'SUCCESS', 'FAILED') of QR code transactions, mapped by Transaction ID (`txId`).
+
+3. HELPER FUNCTIONS
+-------------------
+*   `getLocalMySQLDate()`: Converts a JS Date object to a MySQL-compatible DATETIME string (YYYY-MM-DD HH:MM:SS), adjusting for timezone.
+*   `getLocalIp()`: Finds the machine's local Network IP (e.g., 192.168.x.x). This is crucial for the QR code payment link, allowing a mobile phone on the same WiFi to access the payment page hosted on your laptop.
+
+4. API ENDPOINTS BREAKDOWN
+--------------------------
+
+[A] PUBLIC DATA
+*   `GET /api/books`: Fetches all books from the database.
+*   `GET /api/carousel`: Fetches active slides for the homepage.
+
+[B] AUTHENTICATION
+*   `POST /api/send-otp`:
+    1.  Checks if email already exists in DB.
+    2.  Generates a 6-digit random OTP.
+    3.  Stores it in `otpStore`.
+    4.  Sends an email via Gmail SMTP.
+*   `POST /api/register`:
+    1.  Validates the provided OTP against `otpStore`.
+    2.  Hashes the password using `bcrypt`.
+    3.  Inserts the new user into the DB.
+*   `POST /api/login`:
+    1.  Finds user by email.
+    2.  Compares hashed password using `bcrypt.compare`.
+    3.  Checks if membership has expired (updates DB if true).
+    4.  Fetches user's transaction history.
+    5.  Returns the User object (excluding password).
+
+[C] USER FEATURES
+*   `GET /api/user-details`: Fetches fresh user data (used by Profile page to sync status).
+*   `POST /api/update-membership-status`:
+    1.  Updates the user's plan and expiry date in the `users` table.
+    2.  Inserts records into the `payments` table (one for the plan, and one for each individual book purchased).
+    3.  Returns the updated user object.
+*   `GET /api/download`:
+    *   Acts as a proxy. It fetches the PDF from the source URL using `axios` and streams it to the client as a download attachment. This prevents the browser from just opening the PDF in a new tab.
+
+[D] ADMIN FEATURES
+*   `GET /api/admin/users`: Lists all users.
+*   `POST /api/admin/add-book`: Inserts a new book.
+*   `PUT /api/admin/edit-book/:id`: Updates an existing book.
+*   `DELETE /api/admin/delete-book/:id`: Removes a book.
+*   `DELETE /api/admin/delete-user/:id`: Removes a user.
+*   `GET /api/admin/payments`: Fetches the transaction ledger.
+*   `POST /api/admin/carousel`: Uploads an image (via Multer) and saves slide info to DB.
+*   `DELETE /api/admin/carousel/:id`: Removes a slide.
+
+[E] QR CODE PAYMENT SYSTEM
+*   `POST /api/qr/generate`:
+    1.  Creates a unique Transaction ID (`txId`).
+    2.  Sets status to 'PENDING'.
+    3.  Generates a URL pointing to `/mobile-payment/:txId`.
+*   `GET /mobile-payment/:txId`:
+    *   Serves a simple HTML page to the user's phone with "Pay" and "Cancel" buttons.
+*   `POST /api/qr/update/:txId/:status`:
+    *   Called by the mobile page to update the transaction status in `activeTransactions`.
+*   `GET /api/qr/status/:txId`:
+    *   Called by the Desktop browser (polling) to check if the status has changed to 'SUCCESS'.
