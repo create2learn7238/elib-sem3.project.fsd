@@ -1,0 +1,60 @@
+DATA STRUCTURES & CONCEPTS USED IN BOOKHAVEN (E-LIB3)
+=====================================================
+
+Based on the analysis of the project's source code (index.html, profile.html, admin pages), the following data structures and computer science concepts are utilized.
+
+1. ARRAYS (LISTS)
+-----------------
+Where used: `allBooks`, `filteredBooks`, `cart`, `slides` (in carousel).
+
+*   **Why:** Arrays are the standard way to store ordered collections of items in JavaScript. They are essential here because you need to manage lists of data that can grow or shrink.
+*   **How it works:**
+    *   **Storage:** `allBooks = []` stores the raw list of book objects fetched from the server.
+    *   **Filtering:** In the search function, `allBooks.filter(...)` creates a new array (`filteredBooks`) containing only items that match the search query.
+    *   **Pagination:** You use array slicing (`slice(startIndex, endIndex)`) to display only a specific chunk of the array (e.g., 8 books) per page.
+    *   **Cart:** `cart.push(...)` adds new items to the end of the list, and `cart.splice(index, 1)` removes items from specific positions.
+
+2. OBJECTS (HASH MAPS / DICTIONARIES)
+-------------------------------------
+Where used: `currentUser`, `tempTx`, individual book items inside arrays.
+
+*   **Why:** Objects allow you to group related data (properties) into a single entity using Key-Value pairs. This is crucial for representing real-world entities like a "User" or a "Transaction".
+*   **How it works:**
+    *   **Encapsulation:** Instead of having separate variables for `userEmail`, `userName`, and `userPlan`, you have one `currentUser` object.
+    *   **Access:** You access data instantly using keys, e.g., `currentUser.email` or `tempTx.price`.
+    *   **State Management:** `tempTx` acts as a temporary state holder for the current transaction context (price, plan, method) before it is finalized.
+
+3. JSON (JAVASCRIPT OBJECT NOTATION)
+------------------------------------
+Where used: `localStorage`, API communication (`fetch`).
+
+*   **Why:** Browsers and Servers speak different "languages" (or run in different memory spaces). JSON is a text-based format used to serialize (convert to string) complex data structures so they can be stored or transmitted.
+*   **How it works:**
+    *   **Persistence:** `localStorage.setItem('user', JSON.stringify(data.user))` converts the user object into a string to save it in the browser.
+    *   **Communication:** When sending data to your backend (e.g., login), `JSON.stringify({...})` converts your JavaScript object into a format the server can parse.
+
+4. THE DOM TREE (TREE DATA STRUCTURE)
+-------------------------------------
+Where used: The entire HTML structure (`document`).
+
+*   **Why:** HTML is hierarchical (parents contain children). The browser represents this as a Tree structure called the Document Object Model (DOM).
+*   **How it works:**
+    *   **Traversal & Manipulation:** Your JavaScript interacts with this tree. For example, `document.getElementById('bookGrid')` finds a specific node in the tree.
+    *   **Dynamic Rendering:** When you `render()`, you are dynamically creating new branches (HTML strings) and injecting them into the existing tree (`grid.innerHTML = ...`).
+
+5. QUEUE (IMPLICIT CONCEPT)
+---------------------------
+Where used: The Polling mechanism (`startPolling`), Event Loop.
+
+*   **Why:** You need to check the status of a payment repeatedly without freezing the application.
+*   **How it works:**
+    *   **Polling:** `setInterval` places a function into the execution queue every 2 seconds. These functions wait their turn to execute, checking the server status (`/api/qr/status/`) one by one until success or failure is returned.
+
+SUMMARY TABLE
+-------------
+| Data Structure | Variable Example   | Purpose                                           |
+| :---           | :---               | :---                                              |
+| **Array**      | `cart = []`        | Storing a list of items to iterate over or filter.|
+| **Object**     | `currentUser = {}` | Storing details of a specific entity (User, Book).|
+| **String (JSON)**| `localStorage`   | Saving data permanently in the browser.           |
+| **Tree**       | `document` (DOM)   | Structuring the visual UI elements hierarchically.|
